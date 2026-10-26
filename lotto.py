@@ -21,14 +21,13 @@ import math
 import os
 import random
 import sys
-import time
 import urllib.request
 from collections import Counter
 from itertools import combinations
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_FILE = os.path.join(HERE, "lotto_data.json")
-API = "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={}"
+SOURCE = "https://smok95.github.io/lotto/results/all.json"
 NUMBERS = range(1, 46)
 RECENT = 50  # '최근'으로 보는 회차 수
 
@@ -46,48 +45,35 @@ def load():
 def save(draws):
     draws = sorted({d["회차"]: d for d in draws}.values(), key=lambda d: d["회차"])
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(draws, f, ensure_ascii=False, indent=0)
+        f.write("[\n" + ",\n".join(json.dumps(d, ensure_ascii=False) for d in draws) + "\n]\n")  # 한 줄에 한 회차
     return draws
 
 
-def fetch_draw(no):
-    """동행복권에서 한 회차 받아 오기. 아직 안 나온 회차면 None."""
-    req = urllib.request.Request(API.format(no), headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=10) as r:
+def fetch_all():
+    """회차별 당첨번호 전체를 받아 온다. 동행복권의 예전 조회 주소가 없어져서,
+    매주 당첨번호를 정리해 공개하는 smok95/lotto(https://github.com/smok95/lotto)를 쓴다."""
+    req = urllib.request.Request(SOURCE, headers={"User-Agent": "Mozilla/5.0"})
+    with urllib.request.urlopen(req, timeout=60) as r:
         data = json.loads(r.read().decode("utf-8"))
-    if data.get("returnValue") != "success":
-        return None
-    return {
-        "회차": data["drwNo"],
-        "날짜": data["drwNoDate"],
-        "번호": sorted(data[f"drwtNo{i}"] for i in range(1, 7)),
-        "보너스": data["bnusNo"],
-    }
+    draws = []
+    for x in data:
+        nums = sorted(x["numbers"])
+        if len(set(nums)) == 6 and all(1 <= n <= 45 for n in nums):
+            draws.append({"회차": x["draw_no"], "날짜": x["date"][:10], "번호": nums, "보너스": x["bonus_no"]})
+    return draws
 
 
 def collect():
     draws = load()
-    start = draws[-1]["회차"] + 1 if draws else 1
-    print(f"{start}회부터 받아 오는 중...")
-    new = []
-    no = start
-    while True:
-        try:
-            d = fetch_draw(no)
-        except Exception as e:  # 인터넷 끊김, 사이트 바뀜 등
-            print(f"  {no}회를 받지 못했다: {e}")
-            if not draws and not new:
-                print("  인터넷을 확인하거나, 동행복권 '회차별 당첨번호' 엑셀을 CSV로 저장해서")
-                print("  python lotto.py 가져오기 파일.csv 로 넣어도 된다.")
-            break
-        if d is None:
-            break
-        new.append(d)
-        if len(new) % 100 == 0:
-            print(f"  {no}회까지 받음")
-            save(draws + new)  # 중간에 끊겨도 받은 만큼은 남기기
-        no += 1
-        time.sleep(0.05)
+    last = draws[-1]["회차"] if draws else 0
+    print("당첨번호 받아 오는 중...")
+    try:
+        new = [d for d in fetch_all() if d["회차"] > last]
+    except Exception as e:  # 인터넷 끊김, 사이트 바뀜 등
+        print(f"  받지 못했다: {e}")
+        print("  인터넷을 확인하거나, 동행복권 '회차별 당첨번호' 엑셀을 CSV로 저장해서")
+        print("  python lotto.py 가져오기 파일.csv 로 넣어도 된다.")
+        return draws
     draws = save(draws + new)
     if draws:
         print(f"새로 {len(new)}회 추가. 모두 {len(draws)}회 (마지막 {draws[-1]['회차']}회 {draws[-1]['날짜']})")

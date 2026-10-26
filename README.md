@@ -1,11 +1,23 @@
 # 로또 번호 생성기
 
 지난 로또 6/45 당첨번호를 모으고, 패턴을 살펴보고, 그 패턴에 맞는 번호를 골라 준다.
+
+## 핸드폰으로 쓰기
+GitHub Pages 주소(https://guni0624.github.io/lotto/)를 핸드폰 브라우저로 열면 된다.
+브라우저 메뉴의 "홈 화면에 추가"를 누르면 앱처럼 아이콘이 생긴다.
+
+- `index.html` 핸드폰 화면. 추천 번호 뽑기, 패턴 분석, 추천 방식 검증이 다 들어 있다.
+- `lotto_data.json` 지난 당첨번호. GitHub Actions(`.github/workflows/collect.yml`)가
+  매주 일요일 아침 9시(한국 시간)에 새 회차를 받아 자동으로 넣는다.
+- 당첨번호는 동행복권의 예전 조회 주소가 없어져서, 매주 당첨번호를 정리해 공개하는
+  [smok95/lotto](https://github.com/smok95/lotto)에서 받는다.
+
+## 컴퓨터에서 쓰기
 파이썬만 있으면 된다 (따로 설치할 것 없음).
 
 ```
 python lotto.py              모으기 → 분석 → 추천 5줄 (한 번에)
-python lotto.py 수집          새로 나온 회차만 더 받아 오기 (처음엔 1회부터 전부, 1~2분)
+python lotto.py 수집          새로 나온 회차만 더 받아 오기
 python lotto.py 분석          패턴 보기
 python lotto.py 추천 10       추천 번호 10줄
 python lotto.py 검증          추천 방식이 지난 100회에 실제로 얼마나 맞았는지 확인

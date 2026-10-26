@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>로또 번호 생성기</title>
+<meta name="theme-color" content="#1f6feb">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #f3f5f9; --card: #ffffff; --text: #1b1f27; --sub: #667085; --line: #e4e7ec;
+    --accent: #1f6feb; --accent-text: #ffffff; --bar: #9db7e8; --warn-bg: #fff6e0; --warn-text: #7a5300;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1218; --card: #1a1f29; --text: #e8ebf1; --sub: #98a2b3; --line: #2b3240;
+      --accent: #4c8dff; --accent-text: #0b1020; --bar: #3e5d96; --warn-bg: #3a2e12; --warn-text: #f3d48b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 560px; margin: 0 auto; padding: 16px 16px 40px; }
+  h1 { font-size: 22px; margin: 8px 0 2px; }
+  .sub { color: var(--sub); font-size: 13px; }
+  .card { background: var(--card); border-radius: 16px; padding: 16px; margin-top: 14px; }
+  .card h2 { font-size: 16px; margin: 0 0 12px; }
+  .card h3 { font-size: 14px; margin: 16px 0 8px; color: var(--sub); font-weight: 600; }
+  .balls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .ball {
+    width: 36px; height: 36px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px; color: #fff; text-shadow: 0 1px 1px rgba(0,0,0,.35); flex: none;
+    box-shadow: inset -3px -4px 6px rgba(0,0,0,.18), inset 3px 3px 5px rgba(255,255,255,.35);
+  }
+  .ball.sm { width: 30px; height: 30px; font-size: 13px; }
+  .c1 { background: #f5b800; } .c2 { background: #3fa7e0; } .c3 { background: #f05a5a; }
+  .c4 { background: #8f959e; } .c5 { background: #7cbf2b; }
+  .plus { color: var(--sub); font-weight: 700; }
+  .row { padding: 10px 0; border-top: 1px solid var(--line); }
+  .row:first-child { border-top: 0; }
+  .row .label { font-weight: 700; color: var(--sub); width: 18px; flex: none; }
+  .tags { color: var(--sub); font-size: 12px; margin-top: 6px; padding-left: 24px; }
+  .controls { display: flex; gap: 8px; margin-bottom: 8px; }
+  .seg { display: flex; background: var(--bg); border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: none; color: var(--sub); padding: 8px 12px; border-radius: 8px; font-size: 14px; }
+  .seg button.on { background: var(--card); color: var(--text); font-weight: 700; box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .btn {
+    flex: 1; border: 0; border-radius: 10px; background: var(--accent); color: var(--accent-text);
+    font-size: 15px; font-weight: 700; padding: 12px; cursor: pointer;
+  }
+  .btn.ghost { background: var(--bg); color: var(--text); }
+  .note { font-size: 13px; color: var(--sub); line-height: 1.5; }
+  .warn { background: var(--warn-bg); color: var(--warn-text); border-radius: 12px; padding: 12px; font-size: 13px; line-height: 1.5; }
+  .grid { display: grid; grid-template-columns: repeat(9, 1fr); gap: 4px; }
+  .cell { border-radius: 8px; padding: 6px 0 4px; text-align: center; font-size: 12px; line-height: 1.2; }
+  .cell b { display: block; font-size: 14px; }
+  .cell span { opacity: .8; font-size: 11px; }
+  .dist { display: grid; grid-template-columns: 52px 1fr 40px; gap: 4px 8px; align-items: center; font-size: 13px; }
+  .dist .b { height: 10px; border-radius: 5px; background: var(--bar); }
+  .dist .v { text-align: right; color: var(--sub); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { padding: 6px 4px; text-align: right; border-top: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--sub); font-weight: 600; }
+  details summary { cursor: pointer; font-weight: 700; font-size: 16px; }
+  details[open] summary { margin-bottom: 8px; }
+  .err { color: #d92d20; }
+</style>
+</head>
+<body>
+<main>
+  <h1>로또 번호 생성기</h1>
+  <div class="sub" id="info">지난 당첨번호를 불러오는 중…</div>
+
+  <section class="card">
+    <h2 id="lastTitle">지난 회차 당첨번호</h2>
+    <div class="balls" id="last"></div>
+  </section>
+
+  <section class="card">
+    <h2 id="pickTitle">추천 번호</h2>
+    <div class="controls">
+      <div class="seg" id="count">
+        <button data-n="1">1줄</button><button data-n="5" class="on">5줄</button><button data-n="10">10줄</button>
+      </div>
+      <button class="btn" id="pickBtn">번호 뽑기</button>
+    </div>
+    <div id="picks"></div>
+    <p class="note">출현 횟수·최근 흐름·오래 안 나온 정도로 번호마다 무게를 주고, 지난 당첨번호 대부분이 가진 모양(합계, 홀짝, 낮은/높은 번호 비율 등)에 맞는 줄만 골랐습니다.</p>
+  </section>
+
+  <section class="card">
+    <details id="anal">
+      <summary>패턴 분석</summary>
+      <div id="analysis"></div>
+    </details>
+  </section>
+
+  <section class="card">
+    <details>
+      <summary>추천 방식이 실제로 맞았을까?</summary>
+      <p class="note">지난 100회 각각을, 그 전까지의 번호만 보고 5줄씩 추천해 실제 당첨번호와 맞춰 봅니다. 아무렇게나 고른 번호와 비교합니다.</p>
+      <button class="btn ghost" id="testBtn" style="width:100%">확인하기</button>
+      <div id="test"></div>
+    </details>
+  </section>
+
+  <div class="card warn">
+    로또는 매번 독립된 무작위 추첨이라 지난 패턴이 다음 번호를 알려 주지 않습니다.
+    여기 번호는 '흔히 나오는 모양'에 맞춘 것일 뿐이고 당첨 확률은 아무 번호와 같습니다 (1등 1/8,145,060).
+  </div>
+</main>
+
+<script>
+const RECENT = 50;
+const NUMS = Array.from({ length: 45 }, (_, i) => i + 1);
+let DRAWS = [];
+let COUNT = 5;
+
+const $ = (id) => document.getElementById(id);
+const nums = (d) => d["번호"];
+const colorOf = (n) => "c" + (n <= 10 ? 1 : n <= 20 ? 2 : n <= 30 ? 3 : n <= 40 ? 4 : 5);
+const ball = (n, sm) => `<span class="ball ${sm ? "sm " : ""}${colorOf(n)}">${n}</span>`;
+const balls = (list, sm) => `<div class="balls">${list.map((n) => ball(n, sm)).join("")}</div>`;
+const pct = (v) => (v * 100).toFixed(v < 0.1 ? 1 : 0) + "%";
+
+function counter(list) {
+  const c = new Map();
+  for (const x of list) c.set(x, (c.get(x) || 0) + 1);
+  return c;
+}
+function countNums(draws) {
+  const c = Object.fromEntries(NUMS.map((n) => [n, 0]));
+  for (const d of draws) for (const n of nums(d)) c[n]++;
+  return c;
+}
+// 번호마다 마지막으로 나온 뒤 몇 회째 안 나왔는지
+function gaps(draws) {
+  const last = {};
+  draws.forEach((d, i) => nums(d).forEach((n) => (last[n] = i)));
+  return Object.fromEntries(NUMS.map((n) => [n, draws.length - 1 - (last[n] ?? -1)]));
+}
+// 한 줄의 모양
+function shape(list) {
+  const a = [...list].sort((x, y) => x - y);
+  let run = 0;
+  for (let i = 1; i < a.length; i++) if (a[i] - a[i - 1] === 1) run++;
+  return {
+    sum: a.reduce((s, n) => s + n, 0),
+    odd: a.filter((n) => n % 2).length,
+    low: a.filter((n) => n <= 22).length,
+    run,
+    end: Math.max(...counter(a.map((n) => n % 10)).values()),
+    decade: Math.max(...counter(a.map((n) => Math.floor((n - 1) / 10))).values()),
+  };
+}
+function percentile(values, p) {
+  const v = [...values].sort((a, b) => a - b);
+  const k = (v.length - 1) * p, lo = Math.floor(k), hi = Math.ceil(k);
+  return v[lo] + (v[hi] - v[lo]) * (k - lo);
+}
+
+// 지난 당첨번호 대부분(가운데 80% 정도)이 가진 모양을 조건으로 만든다
+function buildFilter(draws) {
+  const sums = draws.map((d) => shape(nums(d)).sum);
+  const lo = percentile(sums, 0.1), hi = percentile(sums, 0.9);
+  const past = new Set(draws.map((d) => nums(d).join(",")));
+  return (list) => {
+    const s = shape(list);
+    return lo <= s.sum && s.sum <= hi && s.odd >= 2 && s.odd <= 4 && s.low >= 2 && s.low <= 4
+      && s.run <= 1 && s.end <= 2 && s.decade <= 3 && !past.has([...list].sort((a, b) => a - b).join(","));
+  };
+}
+// 번호마다 뽑힐 무게: 전체 횟수 + 최근 횟수 + 오래 안 나온 정도
+function weights(draws) {
+  const all = countNums(draws), recent = draws.slice(-RECENT), rec = countNums(recent), gap = gaps(draws);
+  const expAll = draws.length * 6 / 45, expRec = recent.length * 6 / 45;
+  return NUMS.map((n) => 0.4 * (expAll ? all[n] / expAll : 1) + 0.4 * (expRec ? rec[n] / expRec : 1)
+    + 0.2 * Math.min(gap[n] / 7.5, 3) + 0.2);
+}
+function randomLine() {
+  const pool = [...NUMS], out = [];
+  for (let i = 0; i < 6; i++) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+  return out.sort((a, b) => a - b);
+}
+function pick(w, ok) {
+  const total = w.reduce((s, x) => s + x, 0);
+  for (let t = 0; t < 10000; t++) {
+    const chosen = new Set();
+    while (chosen.size < 6) {
+      let r = Math.random() * total, i = 0;
+      while (r >= w[i]) r -= w[i++];
+      chosen.add(i + 1);
+    }
+    if (ok(chosen)) return [...chosen].sort((a, b) => a - b);
+  }
+  return randomLine();
+}
+
+function showPicks() {
+  const ok = buildFilter(DRAWS), w = weights(DRAWS), lines = [];
+  while (lines.length < COUNT) {
+    const line = pick(w, ok);
+    if (!lines.some((l) => l.join() === line.join())) lines.push(line);
+  }
+  $("picks").innerHTML = lines.map((line, i) => {
+    const s = shape(line);
+    return `<div class="row"><div class="balls"><span class="label">${String.fromCharCode(65 + i)}</span>${line.map((n) => ball(n)).join("")}</div>
+      <div class="tags">합 ${s.sum} · 홀${s.odd}:짝${6 - s.odd} · 낮은${s.low}:높은${6 - s.low}</div></div>`;
+  }).join("");
+}
+
+function distBlock(title, values, unit) {
+  const c = counter(values), keys = [...c.keys()].sort((a, b) => a - b), max = Math.max(...c.values());
+  return `<h3>${title}</h3><div class="dist">` + keys.map((k) => {
+    const v = c.get(k) / values.length;
+    return `<div>${k}${unit}</div><div class="b" style="width:${(c.get(k) / max) * 100}%"></div><div class="v">${pct(v)}</div>`;
+  }).join("") + "</div>";
+}
+
+function showAnalysis() {
+  const total = DRAWS.length, all = countNums(DRAWS), recent = DRAWS.slice(-RECENT), rec = countNums(recent), gap = gaps(DRAWS);
+  const exp = total * 6 / 45;
+  const byAll = [...NUMS].sort((a, b) => all[b] - all[a]);
+  const hot = [...NUMS].sort((a, b) => rec[b] - rec[a]).slice(0, 8);
+  const cold = [...NUMS].sort((a, b) => gap[b] - gap[a]).slice(0, 8);
+  const chi = NUMS.reduce((s, n) => s + (all[n] - exp) ** 2 / exp, 0);
+  const minC = Math.min(...Object.values(all)), maxC = Math.max(...Object.values(all));
+
+  const cells = NUMS.map((n) => {
+    const t = maxC > minC ? (all[n] - minC) / (maxC - minC) : 0.5;
+    return `<div class="cell" style="background:color-mix(in srgb, var(--accent) ${Math.round(8 + t * 55)}%, var(--card))">
+      <b>${n}</b><span>${all[n]}</span></div>`;
+  }).join("");
+
+  const shapes = DRAWS.map((d) => shape(nums(d)));
+  const sums = shapes.map((s) => s.sum);
+  const pairs = counter(DRAWS.flatMap((d) => {
+    const a = nums(d), out = [];
+    for (let i = 0; i < 6; i++) for (let j = i + 1; j < 6; j++) out.push(a[i] + "-" + a[j]);
+    return out;
+  }));
+  const topPairs = [...pairs.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  $("analysis").innerHTML = `
+    <p class="note">${DRAWS[0]["회차"]}회 ~ ${DRAWS[total - 1]["회차"]}회, 모두 ${total}회.
+      고르게 나왔다면 번호마다 약 ${exp.toFixed(0)}번 나왔어야 합니다.</p>
+    <h3>번호별 나온 횟수 (진할수록 많이)</h3><div class="grid">${cells}</div>
+    <h3>가장 많이 나온 번호</h3>${balls(byAll.slice(0, 8), true)}
+    <h3>가장 적게 나온 번호</h3>${balls(byAll.slice(-8).reverse(), true)}
+    <h3>최근 ${RECENT}회에 많이 나온 번호</h3>${balls(hot, true)}
+    <h3>오래 안 나온 번호</h3>${balls(cold, true)}
+    <p class="note">${cold.slice(0, 3).map((n) => `${n}번 ${gap[n]}회째`).join(", ")} 안 나옴</p>
+    <h3>정말 잘 나오는 번호가 있을까?</h3>
+    <p class="note">카이제곱 검정 값 ${chi.toFixed(1)} (60.5를 넘으면 치우침이 의심됨) →
+      <b>${chi > 60.5 ? "치우침이 보이지만, 그래도 우연일 수 있습니다." : "완전히 무작위로 뽑은 것과 구별되지 않습니다. 특별히 잘 나오는 번호는 없다는 뜻입니다."}</b></p>
+    <h3>당첨번호 6개의 합</h3>
+    <p class="note">평균 ${(sums.reduce((a, b) => a + b, 0) / total).toFixed(0)}, 가운데 80%는 ${percentile(sums, 0.1).toFixed(0)} ~ ${percentile(sums, 0.9).toFixed(0)}</p>
+    ${distBlock("홀수 개수", shapes.map((s) => s.odd), "개")}
+    ${distBlock("1~22 번호 개수", shapes.map((s) => s.low), "개")}
+    ${distBlock("이어진 번호 (예: 7, 8)", shapes.map((s) => s.run), "쌍")}
+    <h3>같이 자주 나온 두 번호</h3>
+    <p class="note">${topPairs.map(([p, c]) => `${p} (${c}번)`).join(", ")}</p>`;
+}
+
+function backtest() {
+  const lines = 5;
+  let test = Math.min(100, DRAWS.length - 100);
+  if (test <= 0) { $("test").innerHTML = '<p class="note">데이터가 101회 이상 있어야 합니다.</p>'; return; }
+  const mine = Array(7).fill(0), rand = Array(7).fill(0);
+  for (let i = DRAWS.length - test; i < DRAWS.length; i++) {
+    const past = DRAWS.slice(0, i), real = new Set(nums(DRAWS[i])), ok = buildFilter(past), w = weights(past);
+    for (let k = 0; k < lines; k++) {
+      mine[pick(w, ok).filter((n) => real.has(n)).length]++;
+      rand[randomLine().filter((n) => real.has(n)).length]++;
+    }
+  }
+  const n = test * lines, comb = (a, b) => { let r = 1; for (let i = 0; i < b; i++) r = r * (a - i) / (i + 1); return r; };
+  const prize = { 3: "5등", 4: "4등", 5: "3등", 6: "1등" };
+  const avg = (arr) => arr.reduce((s, v, k) => s + v * k, 0) / n;
+  $("test").innerHTML = `<table><tr><th>맞은 개수</th><th>추천</th><th>아무 번호</th><th>이론</th></tr>` +
+    [0, 1, 2, 3, 4, 5, 6].map((k) => `<tr><td>${k}개 ${prize[k] || ""}</td><td>${mine[k]}줄</td><td>${rand[k]}줄</td>
+      <td>${pct(comb(6, k) * comb(39, 6 - k) / comb(45, 6))}</td></tr>`).join("") +
+    `</table><p class="note">${n}줄 기준 평균 맞은 개수: 추천 <b>${avg(mine).toFixed(2)}개</b>, 아무 번호 <b>${avg(rand).toFixed(2)}개</b>
+      (이론 0.80개). 차이가 0.05개 안쪽이면 그냥 운의 차이입니다. 누를 때마다 결과가 조금씩 달라집니다.</p>`;
+}
+
+$("count").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  for (const x of $("count").children) x.classList.toggle("on", x === b);
+  COUNT = +b.dataset.n;
+  try { localStorage.setItem("count", COUNT); } catch (_) {}
+  showPicks();
+});
+$("pickBtn").addEventListener("click", showPicks);
+$("testBtn").addEventListener("click", () => { $("test").innerHTML = '<p class="note">계산 중…</p>'; setTimeout(backtest, 30); });
+
+(async () => {
+  try {
+    const saved = +localStorage.getItem("count");
+    if ([1, 5, 10].includes(saved)) {
+      COUNT = saved;
+      for (const x of $("count").children) x.classList.toggle("on", +x.dataset.n === saved);
+    }
+  } catch (_) {}
+  try {
+    const r = await fetch("lotto_data.json", { cache: "no-cache" });
+    DRAWS = await r.json();
+    if (!DRAWS.length) throw new Error("비어 있음");
+  } catch (e) {
+    $("info").innerHTML = `<span class="err">당첨번호를 불러오지 못했습니다 (${e.message}).</span>`;
+    return;
+  }
+  const last = DRAWS[DRAWS.length - 1];
+  $("info").textContent = `${last["회차"]}회 (${last["날짜"]})까지 ${DRAWS.length}회 분석 · 매주 일요일 아침 자동 업데이트`;
+  $("lastTitle").textContent = `${last["회차"]}회 당첨번호`;
+  $("last").innerHTML = nums(last).map((n) => ball(n)).join("") + `<span class="plus">+</span>` + ball(last["보너스"]);
+  $("pickTitle").textContent = `${last["회차"] + 1}회 추천 번호`;
+  showPicks();
+  showAnalysis();
+})();
+</script>
+</body>
+</html>
