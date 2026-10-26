@@ -1,0 +1,17 @@
+name: debug
+on: workflow_dispatch
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36"
+          for u in "https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=1" \
+                   "https://dhlottery.co.kr/common.do?method=getLottoNumber&drwNo=1200" \
+                   "https://smok95.github.io/lotto/results/latest.json" \
+                   "https://smok95.github.io/lotto/results/1.json" \
+                   "https://smok95.github.io/lotto/results/all.json"; do
+            echo "=================== $u"
+            curl -sS -L -m 30 -A "$UA" -D - "$u" -o body.txt -w "final=%{url_effective} code=%{http_code} size=%{size_download}\n" || true
+            head -c 700 body.txt; echo
+          done
